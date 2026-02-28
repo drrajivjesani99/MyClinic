@@ -1,66 +1,81 @@
-import { supabase } from './supabase';
+import { databases, DB_ID, COLS, ID, Query } from './appwrite'
 
-async function getOneSignalCredentials() {
-  const { data } = await supabase
-    .from('admin_settings')
-    .select('onesignal_app_id, onesignal_api_key')
-    .single();
-  return data;
-}
-
-export async function sendPushNotification({ playerId, title, body }) {
-  if (!playerId) return;
+// Send in-app notification to a specific patient
+export async function sendInAppNotification({ patientId, title, message, type }) {
   try {
-    const creds = await getOneSignalCredentials();
-    if (!creds?.onesignal_app_id || !creds?.onesignal_api_key) return;
-
-    await fetch('https://onesignal.com/api/v1/notifications', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Basic ${creds.onesignal_api_key}`,
-      },
-      body: JSON.stringify({
-        app_id: creds.onesignal_app_id,
-        include_player_ids: [playerId],
-        headings: { en: title },
-        contents: { en: body },
-      }),
-    });
+    await databases.createDocument(DB_ID, COLS.notifications, ID.unique(), {
+      patient_id: patientId,
+      title,
+      message,
+      type: type || 'general',
+      is_read: false,
+      created_at: new Date().toISOString()
+    })
   } catch (err) {
-    console.error('Push notification error:', err);
+    console.error('Notification error:', err)
   }
 }
 
-export async function subscribeToNotifications() {
-  return new Promise((resolve) => {
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    window.OneSignalDeferred.push(async function (OneSignal) {
-      try {
-        await OneSignal.Notifications.requestPermission();
-        const id = await OneSignal.User.PushSubscription.id;
-        resolve(id || null);
-      } catch {
-        resolve(null);
-      }
-    });
-  });
+// Send notification to ALL patients (for health tips)
+export async function sendNotificationToAll({ title, message, type }) {
+  try {
+    const res = await databases.listDocuments(DB_ID, COLS.patients, [
+      Query.equal('is_active', true),
+      Query.limit(100)
+    ])
+    for (const patient of res.documents) {
+      await databases.createDocument(DB_ID, COLS.notifications, ID.unique(), {
+        patient_id: patient.$id,
+        title,
+        message,
+        type: type || 'health_tip',
+        is_read: false,
+        created_at: new Date().toISOString()
+      })
+    }
+  } catch (err) {
+    console.error('Broadcast notification error:', err)
+  }
 }
 
-export async function getPlayerId() {
-  return new Promise((resolve) => {
-    if (!window.OneSignal) {
-      resolve(null);
-      return;
+// Get notifications for a patient
+export async function getNotifications(patientId) {
+  try {
+    const res = await databases.listDocuments(DB_ID, COLS.notifications, [
+      Query.equal('patient_id', patientId),
+      Query.orderDesc('created_at'),
+      Query.limit(50)
+    ])
+    return res.documents
+  } catch (err) {
+    console.error('Get notifications error:', err)
+    return []
+  }
+}
+
+// Mark notification as read
+export async function markAsRead(notificationId) {
+  try {
+    await databases.updateDocument(DB_ID, COLS.notifications, notificationId, {
+      is_read: true
+    })
+  } catch (err) {
+    console.error('Mark read error:', err)
+  }
+}
+
+// Mark all notifications as read
+export async function markAllAsRead(patientId) {
+  try {
+    const res = await databases.listDocuments(DB_ID, COLS.notifications, [
+      Query.equal('patient_id', patientId),
+      Query.equal('is_read', false),
+      Query.limit(100)
+    ])
+    for (const n of res.documents) {
+      await databases.updateDocument(DB_ID, COLS.notifications, n.$id, { is_read: true })
     }
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    window.OneSignalDeferred.push(async function (OneSignal) {
-      try {
-        const id = await OneSignal.User.PushSubscription.id;
-        resolve(id || null);
-      } catch {
-        resolve(null);
-      }
-    });
-  });
+  } catch (err) {
+    console.error('Mark all read error:', err)
+  }
 }
