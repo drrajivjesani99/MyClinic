@@ -1,54 +1,44 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState } from 'react'
 
-const AppContext = createContext(null);
+const AppContext = createContext(null)
 
 export function AppProvider({ children }) {
   const [patient, setPatient] = useState(() => {
-    const saved = localStorage.getItem('myclinic_patient');
-    return saved ? JSON.parse(saved) : null;
-  });
+    const saved = localStorage.getItem('myclinic_patient')
+    return saved ? JSON.parse(saved) : null
+  })
   const [isAdmin, setIsAdmin] = useState(() => {
-    return localStorage.getItem('myclinic_admin') === 'true';
-  });
-  const [selectedClinic, setSelectedClinic] = useState(null);
+    return localStorage.getItem('myclinic_admin') === 'true'
+  })
 
   const loginPatient = (patientData) => {
-    setPatient(patientData);
-    localStorage.setItem('myclinic_patient', JSON.stringify(patientData));
-  };
+    setPatient(patientData)
+    localStorage.setItem('myclinic_patient', JSON.stringify(patientData))
+  }
 
   const logoutPatient = () => {
-    setPatient(null);
-    localStorage.removeItem('myclinic_patient');
-    setSelectedClinic(null);
-  };
+    setPatient(null)
+    localStorage.removeItem('myclinic_patient')
+  }
 
   const loginAdmin = () => {
-    setIsAdmin(true);
-    localStorage.setItem('myclinic_admin', 'true');
-  };
+    setIsAdmin(true)
+    localStorage.setItem('myclinic_admin', 'true')
+  }
 
   const logoutAdmin = () => {
-    setIsAdmin(false);
-    localStorage.removeItem('myclinic_admin');
-  };
+    setIsAdmin(false)
+    localStorage.removeItem('myclinic_admin')
+  }
 
   return (
-    <AppContext.Provider
-      value={{
-        patient,
-        loginPatient,
-        logoutPatient,
-        isAdmin,
-        loginAdmin,
-        logoutAdmin,
-        selectedClinic,
-        setSelectedClinic,
-      }}
-    >
+    <AppContext.Provider value={{
+      patient, loginPatient, logoutPatient,
+      isAdmin, loginAdmin, logoutAdmin
+    }}>
       {children}
     </AppContext.Provider>
-  );
+  )
 }
 
-export const useApp = () => useContext(AppContext);
+export const useApp = () => useContext(AppContext)
