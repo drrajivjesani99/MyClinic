@@ -4,6 +4,7 @@ import App from './App.jsx'
 import './index.css'
 import { subscribeToPush } from './lib/notifications'
 
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
@@ -12,5 +13,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 
 // Ask for push permission after 3 seconds
 setTimeout(() => {
-  subscribeToPush('')
+  subscribeToPush()
 }, 3000)
